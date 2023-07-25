@@ -1,0 +1,68 @@
+version: '3.7'
+services:
+  # TimescaleDB/PostgreSQL database
+  timescale:
+    image: timescale/timescaledb:latest-pg12
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - type: volume
+        source: timescale_volume # the volume name
+        target: /var/lib/postgresql/data # the location in the container where the data is stored
+        read_only: false
+    ports:
+      - 0.0.0.0:5432:5432
+    networks:
+      - timescale_network
+
+  # PGAdmin for administering the TimescaleDB/PostgreSQL database with SQL
+  pgadmin:
+    image: "dpage/pgadmin4:latest"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PGADMIN_LISTEN_PORT: 9000
+    ports:
+      # Use 0.0.0.0 to make this DB admin app accessible from "http://localhost:9000"
+      - 0.0.0.0:9000:9000
+    volumes:
+      # So the database server settings get saved and stored even if the container is replaced or deleted
+      - pgadmin:/var/lib/pgadmin
+    networks:
+      - timescale_network
+
+  # Our Python development container, for running our Flask/Dash app, and our Jupyter Notebooks
+  dev_container:
+    volumes:
+      # Mount the root folder so its contents update automatically in development
+      - .:/usr/src/app
+    build:
+      # context: where should docker-compose look for the Dockerfile?
+      # i.e. either a path to a directory containing a Dockerfile, or a url to a git repository
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env
+    environment:
+      FLASK_CONFIG: development
+      FLASK_ENV: development
+    # Forwards requests from http://localhost:5006 on the Docker host (e.g. your computer)
+    # to the dev environment container's port 5000.
+    # Your web app is accessible at "http://localhost:5006"
+    ports:
+      - 0.0.0.0:5006:5000
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+    networks:
+      - timescale_network
+
+networks:
+  # The network the above containers share, for accessing the database
+  timescale_network:
+
+# Creates a named volume to persist our database data
+volumes:
+  timescale_volume:
+  pgadmin:
