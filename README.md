@@ -26,6 +26,11 @@ Physical model approaches:
 Computer vision approaches
 * CNN, etc for the panel imagery
 
+### Development
+
+* Activate virtual environment in `ml-model` with `source venv/bin/activate` and `deactivate`
+* Cmd+shift+p in VSCode to select environment for notebook
+
 ### Next steps
 
 #### Deploy models in an ML pipeline

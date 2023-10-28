@@ -1,3 +1,5 @@
+ml-model/catboost_info/
+
 # data files
 *.csv
 
