@@ -1,0 +1,61 @@
+from aws_cdk import (
+    core,
+    aws_ec2 as ec2,
+    aws_ecs as ecs,
+    aws_ecr as ecr,
+    aws_ecs_patterns as ecs_patterns,
+)
+
+class TimescaleDBECSStack(core.Stack):
+
+    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        vpc = ec2.Vpc(self, "MyVpc", max_azs=3)
+
+        cluster = ecs.Cluster(self, "MyCluster", vpc=vpc) 
+
+        timescaledb_repo = ecr.Repository.from_repository_name(self, "TimescaleDBRepo", "timescaledb")
+        api_repo = ecr.Repository.from_repository_name(self, "APIRepo", "my-api")
+
+        timescaledb_task_definition = ecs.FargateTaskDefinition(self, "TimescaleDBTaskDef") # task definitions for TimescaleDB
+        timescaledb_container = timescaledb_task_definition.add_container(
+            "TimescaleDBContainer",
+            image=ecs.ContainerImage.from_ecr_repository(timescaledb_repo),
+            memory_limit_mib=512,
+            cpu=256,
+            environment=dict(
+                POSTGRES_DB="your_database",
+                POSTGRES_USER="your_user",
+                POSTGRES_PASSWORD="your_password",
+            )
+        )
+        timescaledb_container.add_port_mappings(ecs.PortMapping(container_port=5432))
+
+        api_task_definition = ecs.FargateTaskDefinition(self, "APITaskDef") # task definition and fargate service for timescaleb
+        api_container = api_task_definition.add_container(
+            "APIContainer",
+            image=ecs.ContainerImage.from_ecr_repository(api_repo),
+            memory_limit_mib=512,
+            cpu=256
+        )
+        api_container.add_port_mappings(ecs.PortMapping(container_port=80))
+
+        timescaledb_service = ecs_patterns.NetworkLoadBalancedFargateService(
+            self, "TimescaleDBService",
+            cluster=cluster,
+            task_definition=timescaledb_task_definition
+        )
+
+        api_service = ecs_patterns.NetworkLoadBalancedFargateService(
+            self, "APIService",
+            cluster=cluster,
+            task_definition=api_task_definition
+        )
+
+        core.CfnOutput(self, "LoadBalancerDNS", value=api_service.load_balancer.load_balancer_dns_name)
+
+app = core.App()
+TimescaleDBECSStack(app, "TimescaleDBECSStack", env={'region': 'us-west-2'}) 
+
+app.synth()

@@ -1,3 +1,5 @@
+### Ingestion
+
 Some initial setup for ingesting CSV seed data into the TimeScaleDB table.  
 
 1. First, create the table to match the CSV structure
@@ -23,3 +25,8 @@ SELECT create_hypertable('solar_array_telemetry', 'timestamp');
 ```
 
 2. Run `ingest_dummy_csv_to_timescaledb.py` to insert data from the CSV into TimescaleDB.
+
+### AWS deployment
+The Docker images are stored on an ECR repository.  Build the TimescaleDB and Docker images, and push them to the ECR repo.  
+
+Then create amn ECS cluster and service to host and run this instance.  
