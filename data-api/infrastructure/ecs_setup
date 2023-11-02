@@ -11,51 +11,60 @@ class TimescaleDBECSStack(core.Stack):
     def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-        vpc = ec2.Vpc(self, "MyVpc", max_azs=3)
-
-        cluster = ecs.Cluster(self, "MyCluster", vpc=vpc) 
+        vpc = ec2.Vpc(self, "MyVpc", max_azs=3) # VPC
+        cluster = ecs.Cluster(self, "MyCluster", vpc=vpc)  # ECS cluster within the VPC
 
         timescaledb_repo = ecr.Repository.from_repository_name(self, "TimescaleDBRepo", "timescaledb")
-        api_repo = ecr.Repository.from_repository_name(self, "APIRepo", "my-api")
+        fastapi_repo = ecr.Repository.from_repository_name(self, "FastAPIRepo", "fastapi")
 
-        timescaledb_task_definition = ecs.FargateTaskDefinition(self, "TimescaleDBTaskDef") # task definitions for TimescaleDB
+        ### task definitions
+
+        timescaledb_task_definition = ecs.FargateTaskDefinition(self, "TimescaleDBTaskDef")
         timescaledb_container = timescaledb_task_definition.add_container(
             "TimescaleDBContainer",
             image=ecs.ContainerImage.from_ecr_repository(timescaledb_repo),
             memory_limit_mib=512,
             cpu=256,
             environment=dict(
-                POSTGRES_DB="", # TO DO: add in env vars
-                POSTGRES_USER="",
-                POSTGRES_PASSWORD="",
+                POSTGRES_DB="your_db_name",
+                POSTGRES_USER="your_user",
+                POSTGRES_PASSWORD="your_password",
             )
         )
         timescaledb_container.add_port_mappings(ecs.PortMapping(container_port=5432))
 
-        api_task_definition = ecs.FargateTaskDefinition(self, "APITaskDef") # task definition and fargate service for TimescaleDB
-        api_container = api_task_definition.add_container(
-            "APIContainer",
-            image=ecs.ContainerImage.from_ecr_repository(api_repo),
+        fastapi_task_definition = ecs.FargateTaskDefinition(self, "FastAPITaskDef")
+        fastapi_container = fastapi_task_definition.add_container(
+            "FastAPIContainer",
+            image=ecs.ContainerImage.from_ecr_repository(fastapi_repo),
             memory_limit_mib=512,
-            cpu=256
+            cpu=256,
+            environment=dict(
+                DATABASE_URL="postgresql://your_user:your_password@timescaledb-service:5432/your_db_name",
+            )
         )
-        api_container.add_port_mappings(ecs.PortMapping(container_port=80))
+        fastapi_container.add_port_mappings(ecs.PortMapping(container_port=8000))
 
+        ### services
         timescaledb_service = ecs_patterns.NetworkLoadBalancedFargateService(
             self, "TimescaleDBService",
             cluster=cluster,
             task_definition=timescaledb_task_definition
         )
 
-        api_service = ecs_patterns.NetworkLoadBalancedFargateService(
-            self, "APIService",
+        fastapi_service = ecs_patterns.ApplicationLoadBalancedFargateService(
+            self, "FastAPIService",
             cluster=cluster,
-            task_definition=api_task_definition
+            task_definition=fastapi_task_definition,
+            desired_count=1,
+            public_load_balancer=True,
+            listener_port=80
         )
 
-        core.CfnOutput(self, "LoadBalancerDNS", value=api_service.load_balancer.load_balancer_dns_name)
+        # fast api load balancer
+        core.CfnOutput(self, "FastAPILoadBalancerDNS", value=fastapi_service.load_balancer.load_balancer_dns_name)
 
 app = core.App()
-TimescaleDBECSStack(app, "TimescaleDBECSStack", env={'region': 'us-west-2'}) 
+TimescaleDBECSStack(app, "TimescaleDBECSStack", env={'region': 'us-west-2'})
 
 app.synth()

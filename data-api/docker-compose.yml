@@ -29,7 +29,16 @@ services:
     depends_on:
       - timescaledb
     networks:
-      - timescaledb_network    
+      - timescaledb_network
+
+  fastapi:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    depends_on:
+      - timescaledb
 
 networks:
   timescaledb_network:
