@@ -25,14 +25,14 @@ class TimescaleDBECSStack(core.Stack):
             memory_limit_mib=512,
             cpu=256,
             environment=dict(
-                POSTGRES_DB="your_database",
-                POSTGRES_USER="your_user",
-                POSTGRES_PASSWORD="your_password",
+                POSTGRES_DB="", # TO DO: add in env vars
+                POSTGRES_USER="",
+                POSTGRES_PASSWORD="",
             )
         )
         timescaledb_container.add_port_mappings(ecs.PortMapping(container_port=5432))
 
-        api_task_definition = ecs.FargateTaskDefinition(self, "APITaskDef") # task definition and fargate service for timescaleb
+        api_task_definition = ecs.FargateTaskDefinition(self, "APITaskDef") # task definition and fargate service for TimescaleDB
         api_container = api_task_definition.add_container(
             "APIContainer",
             image=ecs.ContainerImage.from_ecr_repository(api_repo),

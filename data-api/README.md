@@ -30,3 +30,5 @@ SELECT create_hypertable('solar_array_telemetry', 'timestamp');
 The Docker images are stored on an ECR repository.  Build the TimescaleDB and Docker images, and push them to the ECR repo.  
 
 Then create amn ECS cluster and service to host and run this instance.  
+
+This project uses `aws-cdk`
